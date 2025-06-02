@@ -1,288 +1,167 @@
 ﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Runtime.InteropServices;
 
-namespace LibraryManagementSystem
+namespace DesignPatterns.Homework
 {
-    public abstract class LibraryItem
+    // Base Product interface
+    public interface IVehicle
     {
-        public int Id { get; set; }
-        public string Title { get; set; }
-        public int PublicationYear { get; set; }
+        void Drive();
+        void DisplayInfo();
+    }
 
-        protected LibraryItem(int id, string title, int publicationYear)
+    // Concrete Products
+    public class Car : IVehicle
+    {
+        public string Model { get; private set; }
+        public int Year { get; private set; }
+
+        public Car(string model, int year)
         {
-            Id = id;
-            Title = title;
-            PublicationYear = publicationYear;
+            Model = model;
+            Year = year;
         }
 
-        public abstract void DisplayInfo();
-
-        public virtual decimal CalculateLateReturnFee(int daysLate)
+        public void Drive()
         {
-            return daysLate * 0.50m;
+            Console.WriteLine($"Driving {Model} car on the road");
+        }
+
+        public void DisplayInfo()
+        {
+            Console.WriteLine($"Car: {Model}, Year: {Year}");
         }
     }
 
-    public interface IBorrowable
+    public class Motorcycle : IVehicle
     {
-        DateTime? BorrowDate { get; set; }
-        DateTime? ReturnDate { get; set; }
-        bool IsAvailable { get; set; }
-        void Borrow();
-        void Return();
-    }
+        public string Brand { get; private set; }
+        public int EngineCapacity { get; private set; }
 
-    public class Book : LibraryItem, IBorrowable
-    {
-        public string Author { get; set; }
-        public int Pages { get; set; }
-        public string Genre { get; set; } = string.Empty;
-
-        public DateTime? BorrowDate { get; set; }
-        public DateTime? ReturnDate { get; set; }
-        public bool IsAvailable { get; set; } = true;
-
-        public Book(int id, string title, int publicationYear, string author)
-            : base(id, title, publicationYear)
+        public Motorcycle(string brand, int engineCapacity)
         {
-            Author = author;
+            Brand = brand;
+            EngineCapacity = engineCapacity;
         }
 
-        public void Borrow()
+        public void Drive()
         {
-            if (!IsAvailable)
-            {
-                Console.WriteLine($"Book '{Title}' is currently not available.");
-                return;
-            }
-            BorrowDate = DateTime.Now;
-            IsAvailable = false;
-            Console.WriteLine($"Book '{Title}' has been borrowed on {BorrowDate:yyyy-MM-dd}.");
+            Console.WriteLine($"Riding {Brand} motorcycle with {EngineCapacity}cc engine");
         }
 
-        public void Return()
+        public void DisplayInfo()
         {
-            ReturnDate = DateTime.Now;
-            IsAvailable = true;
-            Console.WriteLine($"Book '{Title}' returned on {ReturnDate:yyyy-MM-dd}.");
-        }
-
-        public override void DisplayInfo()
-        {
-            Console.WriteLine($"Book: {Title} by {Author}, Genre: {Genre}, Pages: {Pages}, Year: {PublicationYear}, Available: {IsAvailable}");
-        }
-
-        public override decimal CalculateLateReturnFee(int daysLate)
-        {
-            return daysLate * 0.75m;
+            Console.WriteLine($"Motorcycle: {Brand}, Engine: {EngineCapacity}cc");
         }
     }
 
-    public class DVD : LibraryItem, IBorrowable
+    // New Concrete Product: Truck
+    public class Truck : IVehicle
     {
-        public string Director { get; set; }
-        public int Runtime { get; set; }
-        public string AgeRating { get; set; } = string.Empty;
+        public int LoadCapacity { get; private set; }  // in tons
+        public string FuelType { get; private set; }
 
-        public DateTime? BorrowDate { get; set; }
-        public DateTime? ReturnDate { get; set; }
-        public bool IsAvailable { get; set; } = true;
-
-        public DVD(int id, string title, int publicationYear, string director)
-            : base(id, title, publicationYear)
+        public Truck(int loadCapacity, string fuelType)
         {
-            Director = director;
+            LoadCapacity = loadCapacity;
+            FuelType = fuelType;
         }
 
-        public void Borrow()
+        public void Drive()
         {
-            if (!IsAvailable)
-            {
-                Console.WriteLine($"DVD '{Title}' is currently not available.");
-                return;
-            }
-            BorrowDate = DateTime.Now;
-            IsAvailable = false;
-            Console.WriteLine($"DVD '{Title}' has been borrowed on {BorrowDate:yyyy-MM-dd}.");
+            Console.WriteLine($"Driving a {LoadCapacity}-ton truck using {FuelType} fuel");
         }
 
-        public void Return()
+        public void DisplayInfo()
         {
-            ReturnDate = DateTime.Now;
-            IsAvailable = true;
-            Console.WriteLine($"DVD '{Title}' returned on {ReturnDate:yyyy-MM-dd}.");
-        }
-
-        public override void DisplayInfo()
-        {
-            Console.WriteLine($"DVD: {Title} by {Director}, Runtime: {Runtime} minutes, Age Rating: {AgeRating}, Year: {PublicationYear}, Available: {IsAvailable}");
-        }
-
-        public override decimal CalculateLateReturnFee(int daysLate)
-        {
-            return daysLate * 1.00m;
+            Console.WriteLine($"Truck: Load Capacity = {LoadCapacity} tons, Fuel Type = {FuelType}");
         }
     }
 
-    public class Magazine : LibraryItem
+    // Abstract Creator
+    public abstract class VehicleFactory
     {
-        public int IssueNumber { get; set; }
-        public string Publisher { get; set; } = string.Empty;
+        public abstract IVehicle CreateVehicle();
 
-        public Magazine(int id, string title, int publicationYear, int issueNumber)
-            : base(id, title, publicationYear)
+        public void OrderVehicle()
         {
-            IssueNumber = issueNumber;
-        }
-
-        public override void DisplayInfo()
-        {
-            Console.WriteLine($"Magazine: {Title}, Issue #{IssueNumber}, Publisher: {Publisher}, Year: {PublicationYear}");
+            IVehicle vehicle = CreateVehicle();
+            Console.WriteLine("Ordering a new vehicle...");
+            vehicle.DisplayInfo();
+            vehicle.Drive();
+            Console.WriteLine("Vehicle delivered!\n");
         }
     }
 
-    public class Library
+    // Concrete Creators
+    public class CarFactory : VehicleFactory
     {
-        private List<LibraryItem> items = new();
+        private string _model;
+        private int _year;
 
-        public void AddItem(LibraryItem item)
+        public CarFactory(string model, int year)
         {
-            items.Add(item);
+            _model = model;
+            _year = year;
         }
 
-        public LibraryItem? SearchByTitle(string title)
+        public override IVehicle CreateVehicle()
         {
-            return items.FirstOrDefault(item => item.Title.ContainsIgnoreCase(title));
-        }
-
-        public void DisplayAllItems()
-        {
-            foreach (var item in items)
-            {
-                item.DisplayInfo();
-            }
-        }
-
-        public bool UpdateItemTitle(int id, ref string newTitle)
-        {
-            var item = items.FirstOrDefault(i => i.Id == id);
-            if (item != null)
-            {
-                string oldTitle = item.Title;
-                item.Title = newTitle;
-                newTitle = oldTitle;
-                return true;
-            }
-            return false;
-        }
-
-        public ref LibraryItem GetItemReference(int id)
-        {
-            for (int i = 0; i < items.Count; i++)
-            {
-                if (items[i].Id == id)
-                {
-                    return ref CollectionsMarshal.AsSpan(items)[i];
-                }
-            }
-            throw new Exception("Item not found");
+            return new Car(_model, _year);
         }
     }
 
-    public record BorrowRecord(int ItemId, string Title, DateTime BorrowDate, DateTime? ReturnDate, string BorrowerName)
+    public class MotorcycleFactory : VehicleFactory
     {
-        public string LibraryLocation { get; init; }
-    }
+        private string _brand;
+        private int _engineCapacity;
 
-    public static class StringExtensions
-    {
-        public static bool ContainsIgnoreCase(this string source, string toCheck)
+        public MotorcycleFactory(string brand, int engineCapacity)
         {
-            return source?.IndexOf(toCheck, StringComparison.OrdinalIgnoreCase) >= 0;
+            _brand = brand;
+            _engineCapacity = engineCapacity;
+        }
+
+        public override IVehicle CreateVehicle()
+        {
+            return new Motorcycle(_brand, _engineCapacity);
         }
     }
 
-    public class LibraryItemCollection<T> where T : LibraryItem
+    public class TruckFactory : VehicleFactory
     {
-        private readonly List<T> items = new();
+        private int _loadCapacity;
+        private string _fuelType;
 
-        public void Add(T item) => items.Add(item);
-        public T GetItem(int index) => items[index];
-        public int Count => items.Count;
+        public TruckFactory(int loadCapacity, string fuelType)
+        {
+            _loadCapacity = loadCapacity;
+            _fuelType = fuelType;
+        }
+
+        public override IVehicle CreateVehicle()
+        {
+            return new Truck(_loadCapacity, _fuelType);
+        }
     }
 
-    public class Program
+    class Program
     {
-        public static void Main(string[] args)
+        static void Main(string[] args)
         {
-            var library = new Library();
+            Console.WriteLine("Factory Method Pattern Homework\n");
 
-            var book = new Book(1, "The Great Gatsby", 1925, "F. Scott Fitzgerald")
-            {
-                Genre = "Fiction",
-                Pages = 180
-            };
+            VehicleFactory carFactory = new CarFactory("Tesla Model 3", 2023);
+            carFactory.OrderVehicle();
 
-            var dvd = new DVD(2, "Inception", 2010, "Christopher Nolan")
-            {
-                Runtime = 148,
-                AgeRating = "PG-13"
-            };
+            VehicleFactory motorcycleFactory = new MotorcycleFactory("Harley Davidson", 1450);
+            motorcycleFactory.OrderVehicle();
 
-            var magazine = new Magazine(3, "National Geographic", 2023, 45)
-            {
-                Publisher = "National Geographic Society"
-            };
+            VehicleFactory truckFactory = new TruckFactory(10, "Diesel");
+            truckFactory.OrderVehicle();
 
-            library.AddItem(book);
-            library.AddItem(dvd);
-            library.AddItem(magazine);
-
-            Console.WriteLine("=== All Items ===");
-            library.DisplayAllItems();
-
-            Console.WriteLine("\n=== Borrowing ===");
-            book.Borrow();
-            book.Return();
-
-            Console.WriteLine("\n=== Search ===");
-            var found = library.SearchByTitle("gatsby");
-            if (found != null) found.DisplayInfo();
-            else Console.WriteLine("Item not found.");
-
-            Console.WriteLine("\n=== Late Fee Calculation ===");
-            Console.WriteLine($"Book Late Fee (3 days): {book.CalculateLateReturnFee(3):C}");
-            Console.WriteLine($"DVD Late Fee (3 days): {dvd.CalculateLateReturnFee(3):C}");
-
-            Console.WriteLine("\n=== Ref Parameter Test ===");
-            string newTitle = "Gatsby Modified";
-            if (library.UpdateItemTitle(1, ref newTitle))
-            {
-                Console.WriteLine($"Updated title successfully. Old title was: {newTitle}");
-            }
-
-            Console.WriteLine("\n=== Ref Return Test ===");
-            ref var itemRef = ref library.GetItemReference(2);
-            Console.WriteLine($"Original Title: {itemRef.Title}");
-            itemRef.Title += " (Updated via Ref)";
-            Console.WriteLine($"New Title: {itemRef.Title}");
-
-            Console.WriteLine("\n=== Borrow Record History ===");
-            List<BorrowRecord> history = new();
-            var record = new BorrowRecord(book.Id, book.Title, book.BorrowDate ?? DateTime.Now, book.ReturnDate, "John Doe")
-            {
-                LibraryLocation = "Main Branch"
-            };
-            history.Add(record);
-            foreach (var r in history)
-            {
-                Console.WriteLine(r);
-            }
+            Console.WriteLine("Press any key to exit...");
+            Console.ReadKey();
         }
     }
 }
+
