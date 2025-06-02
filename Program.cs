@@ -1,146 +1,181 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Threading;
 
 namespace DesignPatterns.Homework
 {
-    // Base Product interface
-    public interface IVehicle
+    // This homework is based on the Singleton Pattern with a practical application
+    // You will implement a basic logging system using the Singleton pattern
+
+    public class Logger
     {
-        void Drive();
-        void DisplayInfo();
-    }
+        private static Logger _instance;
+        private static readonly object _lock = new object();
+        private static int _instanceCount = 0;
+        private List<string> _logMessages;
 
-    // Concrete Products
-    public class Car : IVehicle
-    {
-        public string Model { get; private set; }
-        public int Year { get; private set; }
-
-        public Car(string model, int year)
+        private Logger()
         {
-            Model = model;
-            Year = year;
+            _logMessages = new List<string>();
+            _instanceCount++;
+            Console.WriteLine($"Logger instance created. Instance count: {_instanceCount}");
         }
 
-        public void Drive()
+        public static Logger GetInstance
         {
-            Console.WriteLine($"Driving {Model} car on the road");
+            get
+            {
+                if (_instance == null)
+                {
+                    lock (_lock)
+                    {
+                        if (_instance == null)
+                        {
+                            _instance = new Logger();
+                        }
+                    }
+                }
+                return _instance;
+            }
         }
 
-        public void DisplayInfo()
+        public static int InstanceCount
         {
-            Console.WriteLine($"Car: {Model}, Year: {Year}");
-        }
-    }
-
-    public class Motorcycle : IVehicle
-    {
-        public string Brand { get; private set; }
-        public int EngineCapacity { get; private set; }
-
-        public Motorcycle(string brand, int engineCapacity)
-        {
-            Brand = brand;
-            EngineCapacity = engineCapacity;
+            get { return _instanceCount; }
         }
 
-        public void Drive()
+        public void LogInfo(string message)
         {
-            Console.WriteLine($"Riding {Brand} motorcycle with {EngineCapacity}cc engine");
+            string entry = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [INFO] {message}";
+            _logMessages.Add(entry);
+            Console.WriteLine(entry);
         }
 
-        public void DisplayInfo()
+        public void LogError(string message)
         {
-            Console.WriteLine($"Motorcycle: {Brand}, Engine: {EngineCapacity}cc");
-        }
-    }
-
-    // New Concrete Product: Truck
-    public class Truck : IVehicle
-    {
-        public int LoadCapacity { get; private set; }  // in tons
-        public string FuelType { get; private set; }
-
-        public Truck(int loadCapacity, string fuelType)
-        {
-            LoadCapacity = loadCapacity;
-            FuelType = fuelType;
+            string entry = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [ERROR] {message}";
+            _logMessages.Add(entry);
+            Console.WriteLine(entry);
         }
 
-        public void Drive()
+        public void LogWarning(string message)
         {
-            Console.WriteLine($"Driving a {LoadCapacity}-ton truck using {FuelType} fuel");
+            string entry = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [WARNING] {message}";
+            _logMessages.Add(entry);
+            Console.WriteLine(entry);
         }
 
-        public void DisplayInfo()
+        public void DisplayLogs()
         {
-            Console.WriteLine($"Truck: Load Capacity = {LoadCapacity} tons, Fuel Type = {FuelType}");
+            Console.WriteLine("\n----- LOG ENTRIES -----");
+            if (_logMessages.Count == 0)
+            {
+                Console.WriteLine("No log entries found.");
+            }
+            else
+            {
+                foreach (var log in _logMessages)
+                {
+                    Console.WriteLine(log);
+                }
+            }
+            Console.WriteLine("----- END OF LOGS -----\n");
         }
-    }
 
-    // Abstract Creator
-    public abstract class VehicleFactory
-    {
-        public abstract IVehicle CreateVehicle();
-
-        public void OrderVehicle()
+        public void ClearLogs()
         {
-            IVehicle vehicle = CreateVehicle();
-            Console.WriteLine("Ordering a new vehicle...");
-            vehicle.DisplayInfo();
-            vehicle.Drive();
-            Console.WriteLine("Vehicle delivered!\n");
+            _logMessages.Clear();
+            Console.WriteLine("All logs have been cleared.");
         }
     }
 
-    // Concrete Creators
-    public class CarFactory : VehicleFactory
+    public class UserService
     {
-        private string _model;
-        private int _year;
+        private Logger _logger;
 
-        public CarFactory(string model, int year)
+        public UserService()
         {
-            _model = model;
-            _year = year;
+            _logger = Logger.GetInstance;
         }
 
-        public override IVehicle CreateVehicle()
+        public void RegisterUser(string username)
         {
-            return new Car(_model, _year);
+            try
+            {
+                if (string.IsNullOrEmpty(username))
+                {
+                    throw new ArgumentException("Username cannot be empty");
+                }
+
+                _logger.LogInfo($"User '{username}' registered successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Failed to register user: {ex.Message}");
+            }
         }
     }
 
-    public class MotorcycleFactory : VehicleFactory
+    public class PaymentService
     {
-        private string _brand;
-        private int _engineCapacity;
+        private Logger _logger;
 
-        public MotorcycleFactory(string brand, int engineCapacity)
+        public PaymentService()
         {
-            _brand = brand;
-            _engineCapacity = engineCapacity;
+            _logger = Logger.GetInstance;
         }
 
-        public override IVehicle CreateVehicle()
+        public void ProcessPayment(string userId, decimal amount)
         {
-            return new Motorcycle(_brand, _engineCapacity);
+            try
+            {
+                if (amount <= 0)
+                {
+                    throw new ArgumentException("Payment amount must be positive");
+                }
+
+                _logger.LogInfo($"Payment of ${amount} processed for user '{userId}'");
+
+                if (amount > 1000)
+                {
+                    _logger.LogWarning($"Large payment of ${amount} detected for user '{userId}'. Verification required.");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Payment processing failed: {ex.Message}");
+            }
         }
     }
 
-    public class TruckFactory : VehicleFactory
+    public class ThreadingDemo
     {
-        private int _loadCapacity;
-        private string _fuelType;
-
-        public TruckFactory(int loadCapacity, string fuelType)
+        public static void RunThreadingTest()
         {
-            _loadCapacity = loadCapacity;
-            _fuelType = fuelType;
-        }
+            Console.WriteLine("\n----- THREADING TEST -----");
+            Console.WriteLine("Creating logger instances from multiple threads...");
 
-        public override IVehicle CreateVehicle()
-        {
-            return new Truck(_loadCapacity, _fuelType);
+            Thread[] threads = new Thread[5];
+            for (int i = 0; i < 5; i++)
+            {
+                threads[i] = new Thread(() =>
+                {
+                    Console.WriteLine($"Thread {Thread.CurrentThread.ManagedThreadId}: Getting logger instance");
+                    Logger logger = Logger.GetInstance;
+                    logger.LogInfo($"Log from thread {Thread.CurrentThread.ManagedThreadId}");
+                    Thread.Sleep(100);
+                });
+
+                threads[i].Start();
+            }
+
+            foreach (Thread thread in threads)
+            {
+                thread.Join();
+            }
+
+            Console.WriteLine($"Threading test complete. Instance count: {Logger.InstanceCount}");
+            Console.WriteLine("----- END THREADING TEST -----\n");
         }
     }
 
@@ -148,16 +183,34 @@ namespace DesignPatterns.Homework
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("Factory Method Pattern Homework\n");
+            Console.WriteLine("Singleton Pattern Homework - Logger System\n");
 
-            VehicleFactory carFactory = new CarFactory("Tesla Model 3", 2023);
-            carFactory.OrderVehicle();
+            Console.WriteLine("Creating first logger instance...");
+            Logger logger1 = Logger.GetInstance;
 
-            VehicleFactory motorcycleFactory = new MotorcycleFactory("Harley Davidson", 1450);
-            motorcycleFactory.OrderVehicle();
+            Console.WriteLine("\nCreating second logger instance...");
+            Logger logger2 = Logger.GetInstance;
 
-            VehicleFactory truckFactory = new TruckFactory(10, "Diesel");
-            truckFactory.OrderVehicle();
+            Console.WriteLine($"\nAre both loggers the same instance? {ReferenceEquals(logger1, logger2)}");
+            Console.WriteLine($"Total instances created: {Logger.InstanceCount} (should be 1)\n");
+
+            ThreadingDemo.RunThreadingTest();
+
+            UserService userService = new UserService();
+            PaymentService paymentService = new PaymentService();
+
+            userService.RegisterUser("john_doe");
+            paymentService.ProcessPayment("john_doe", 99.99m);
+
+            userService.RegisterUser("");
+            paymentService.ProcessPayment("jane_doe", -50);
+
+            paymentService.ProcessPayment("big_spender", 5000m);
+
+            Logger.GetInstance.DisplayLogs();
+            Logger.GetInstance.ClearLogs();
+            Logger.GetInstance.LogInfo("Application shutting down");
+            Logger.GetInstance.DisplayLogs();
 
             Console.WriteLine("Press any key to exit...");
             Console.ReadKey();
