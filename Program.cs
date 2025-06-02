@@ -1,220 +1,242 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Threading;
 
 namespace DesignPatterns.Homework
 {
-    // This homework is based on the Singleton Pattern with a practical application
-    // You will implement a basic logging system using the Singleton pattern
+    #region Observer Pattern Interfaces
 
-    public class Logger
+    public interface IWeatherStation
     {
-        private static Logger _instance;
-        private static readonly object _lock = new object();
-        private static int _instanceCount = 0;
-        private List<string> _logMessages;
+        void RegisterObserver(IWeatherObserver observer);
+        void RemoveObserver(IWeatherObserver observer);
+        void NotifyObservers();
 
-        private Logger()
+        float Temperature { get; }
+        float Humidity { get; }
+        float Pressure { get; }
+    }
+
+    public interface IWeatherObserver
+    {
+        void Update(float temperature, float humidity, float pressure);
+    }
+
+    #endregion
+
+    #region Weather Station Implementation
+
+    public class WeatherStation : IWeatherStation
+    {
+        private List<IWeatherObserver> _observers;
+        private float _temperature;
+        private float _humidity;
+        private float _pressure;
+
+        public WeatherStation()
         {
-            _logMessages = new List<string>();
-            _instanceCount++;
-            Console.WriteLine($"Logger instance created. Instance count: {_instanceCount}");
+            _observers = new List<IWeatherObserver>();
         }
 
-        public static Logger GetInstance
+        public void RegisterObserver(IWeatherObserver observer)
         {
-            get
+            _observers.Add(observer);
+            Console.WriteLine($"[WeatherStation] Registered observer: {observer.GetType().Name}");
+        }
+
+        public void RemoveObserver(IWeatherObserver observer)
+        {
+            _observers.Remove(observer);
+            Console.WriteLine($"[WeatherStation] Removed observer: {observer.GetType().Name}");
+        }
+
+        public void NotifyObservers()
+        {
+            Console.WriteLine("[WeatherStation] Notifying observers...");
+            foreach (var observer in _observers)
             {
-                if (_instance == null)
-                {
-                    lock (_lock)
-                    {
-                        if (_instance == null)
-                        {
-                            _instance = new Logger();
-                        }
-                    }
-                }
-                return _instance;
+                observer.Update(_temperature, _humidity, _pressure);
             }
         }
 
-        public static int InstanceCount
+        public float Temperature => _temperature;
+        public float Humidity => _humidity;
+        public float Pressure => _pressure;
+
+        public void SetMeasurements(float temperature, float humidity, float pressure)
         {
-            get { return _instanceCount; }
+            Console.WriteLine("\n--- Weather Station: Weather measurements updated ---");
+            _temperature = temperature;
+            _humidity = humidity;
+            _pressure = pressure;
+
+            Console.WriteLine($"Temperature: {_temperature}°C");
+            Console.WriteLine($"Humidity: {_humidity}%");
+            Console.WriteLine($"Pressure: {_pressure} hPa");
+
+            NotifyObservers();
+        }
+    }
+
+    #endregion
+
+    #region Observer Implementations
+
+    public class CurrentConditionsDisplay : IWeatherObserver
+    {
+        private float _temperature;
+        private float _humidity;
+        private float _pressure;
+
+        public CurrentConditionsDisplay(IWeatherStation station)
+        {
+            station.RegisterObserver(this);
         }
 
-        public void LogInfo(string message)
+        public void Update(float temperature, float humidity, float pressure)
         {
-            string entry = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [INFO] {message}";
-            _logMessages.Add(entry);
-            Console.WriteLine(entry);
+            _temperature = temperature;
+            _humidity = humidity;
+            _pressure = pressure;
         }
 
-        public void LogError(string message)
+        public void Display()
         {
-            string entry = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [ERROR] {message}";
-            _logMessages.Add(entry);
-            Console.WriteLine(entry);
+            Console.WriteLine($"[CurrentConditions] Temp: {_temperature}°C, Humidity: {_humidity}%, Pressure: {_pressure} hPa");
+        }
+    }
+
+    public class StatisticsDisplay : IWeatherObserver
+    {
+        private List<float> _temperatureHistory;
+
+        public StatisticsDisplay(IWeatherStation station)
+        {
+            _temperatureHistory = new List<float>();
+            station.RegisterObserver(this);
         }
 
-        public void LogWarning(string message)
+        public void Update(float temperature, float humidity, float pressure)
         {
-            string entry = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [WARNING] {message}";
-            _logMessages.Add(entry);
-            Console.WriteLine(entry);
+            _temperatureHistory.Add(temperature);
         }
 
-        public void DisplayLogs()
+        public void Display()
         {
-            Console.WriteLine("\n----- LOG ENTRIES -----");
-            if (_logMessages.Count == 0)
+            float min = float.MaxValue, max = float.MinValue, sum = 0;
+
+            foreach (var temp in _temperatureHistory)
             {
-                Console.WriteLine("No log entries found.");
+                if (temp < min) min = temp;
+                if (temp > max) max = temp;
+                sum += temp;
+            }
+
+            float avg = _temperatureHistory.Count > 0 ? sum / _temperatureHistory.Count : 0;
+            Console.WriteLine($"[Statistics] Min: {min}°C, Max: {max}°C, Avg: {avg:F2}°C");
+        }
+    }
+
+    public class ForecastDisplay : IWeatherObserver
+    {
+        private float _lastPressure = 0f;
+        private string _forecast = "No data";
+
+        public ForecastDisplay(IWeatherStation station)
+        {
+            station.RegisterObserver(this);
+        }
+
+        public void Update(float temperature, float humidity, float pressure)
+        {
+            if (_lastPressure == 0)
+            {
+                _forecast = "Stable weather";
+            }
+            else if (pressure > _lastPressure)
+            {
+                _forecast = "Improving weather";
+            }
+            else if (pressure < _lastPressure)
+            {
+                _forecast = "Cooler, rainy weather";
             }
             else
             {
-                foreach (var log in _logMessages)
-                {
-                    Console.WriteLine(log);
-                }
+                _forecast = "Same weather";
             }
-            Console.WriteLine("----- END OF LOGS -----\n");
+
+            _lastPressure = pressure;
         }
 
-        public void ClearLogs()
+        public void Display()
         {
-            _logMessages.Clear();
-            Console.WriteLine("All logs have been cleared.");
+            Console.WriteLine($"[Forecast] {_forecast}");
         }
     }
 
-    public class UserService
-    {
-        private Logger _logger;
+    #endregion
 
-        public UserService()
-        {
-            _logger = Logger.GetInstance;
-        }
-
-        public void RegisterUser(string username)
-        {
-            try
-            {
-                if (string.IsNullOrEmpty(username))
-                {
-                    throw new ArgumentException("Username cannot be empty");
-                }
-
-                _logger.LogInfo($"User '{username}' registered successfully");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Failed to register user: {ex.Message}");
-            }
-        }
-    }
-
-    public class PaymentService
-    {
-        private Logger _logger;
-
-        public PaymentService()
-        {
-            _logger = Logger.GetInstance;
-        }
-
-        public void ProcessPayment(string userId, decimal amount)
-        {
-            try
-            {
-                if (amount <= 0)
-                {
-                    throw new ArgumentException("Payment amount must be positive");
-                }
-
-                _logger.LogInfo($"Payment of ${amount} processed for user '{userId}'");
-
-                if (amount > 1000)
-                {
-                    _logger.LogWarning($"Large payment of ${amount} detected for user '{userId}'. Verification required.");
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Payment processing failed: {ex.Message}");
-            }
-        }
-    }
-
-    public class ThreadingDemo
-    {
-        public static void RunThreadingTest()
-        {
-            Console.WriteLine("\n----- THREADING TEST -----");
-            Console.WriteLine("Creating logger instances from multiple threads...");
-
-            Thread[] threads = new Thread[5];
-            for (int i = 0; i < 5; i++)
-            {
-                threads[i] = new Thread(() =>
-                {
-                    Console.WriteLine($"Thread {Thread.CurrentThread.ManagedThreadId}: Getting logger instance");
-                    Logger logger = Logger.GetInstance;
-                    logger.LogInfo($"Log from thread {Thread.CurrentThread.ManagedThreadId}");
-                    Thread.Sleep(100);
-                });
-
-                threads[i].Start();
-            }
-
-            foreach (Thread thread in threads)
-            {
-                thread.Join();
-            }
-
-            Console.WriteLine($"Threading test complete. Instance count: {Logger.InstanceCount}");
-            Console.WriteLine("----- END THREADING TEST -----\n");
-        }
-    }
+    #region Application
 
     class Program
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("Singleton Pattern Homework - Logger System\n");
+            Console.WriteLine("Observer Pattern Homework - Weather Station\n");
 
-            Console.WriteLine("Creating first logger instance...");
-            Logger logger1 = Logger.GetInstance;
+            try
+            {
+                WeatherStation weatherStation = new WeatherStation();
 
-            Console.WriteLine("\nCreating second logger instance...");
-            Logger logger2 = Logger.GetInstance;
+                Console.WriteLine("Creating display devices...");
+                CurrentConditionsDisplay currentDisplay = new CurrentConditionsDisplay(weatherStation);
+                StatisticsDisplay statisticsDisplay = new StatisticsDisplay(weatherStation);
+                ForecastDisplay forecastDisplay = new ForecastDisplay(weatherStation);
 
-            Console.WriteLine($"\nAre both loggers the same instance? {ReferenceEquals(logger1, logger2)}");
-            Console.WriteLine($"Total instances created: {Logger.InstanceCount} (should be 1)\n");
+                Console.WriteLine("\nSimulating weather changes...");
 
-            ThreadingDemo.RunThreadingTest();
+                // First update
+                weatherStation.SetMeasurements(25.2f, 65.3f, 1013.1f);
+                Console.WriteLine("\n--- Displaying Information ---");
+                currentDisplay.Display();
+                statisticsDisplay.Display();
+                forecastDisplay.Display();
 
-            UserService userService = new UserService();
-            PaymentService paymentService = new PaymentService();
+                // Second update
+                weatherStation.SetMeasurements(28.5f, 70.2f, 1012.5f);
+                Console.WriteLine("\n--- Displaying Updated Information ---");
+                currentDisplay.Display();
+                statisticsDisplay.Display();
+                forecastDisplay.Display();
 
-            userService.RegisterUser("john_doe");
-            paymentService.ProcessPayment("john_doe", 99.99m);
+                // Third update
+                weatherStation.SetMeasurements(22.1f, 90.7f, 1009.2f);
+                Console.WriteLine("\n--- Displaying Final Information ---");
+                currentDisplay.Display();
+                statisticsDisplay.Display();
+                forecastDisplay.Display();
 
-            userService.RegisterUser("");
-            paymentService.ProcessPayment("jane_doe", -50);
+                // Remove one observer
+                Console.WriteLine("\nRemoving CurrentConditionsDisplay...");
+                weatherStation.RemoveObserver(currentDisplay);
 
-            paymentService.ProcessPayment("big_spender", 5000m);
+                // Final update
+                weatherStation.SetMeasurements(24.5f, 80.1f, 1010.3f);
+                Console.WriteLine("\n--- Displaying Information After Removal ---");
+                statisticsDisplay.Display();
+                forecastDisplay.Display();
 
-            Logger.GetInstance.DisplayLogs();
-            Logger.GetInstance.ClearLogs();
-            Logger.GetInstance.LogInfo("Application shutting down");
-            Logger.GetInstance.DisplayLogs();
+                Console.WriteLine("\nObserver Pattern demonstration complete.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"An error occurred: {ex.Message}");
+            }
 
-            Console.WriteLine("Press any key to exit...");
+            Console.WriteLine("\nPress any key to exit...");
             Console.ReadKey();
         }
     }
-}
 
+    #endregion
+}
